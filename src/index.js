@@ -8,7 +8,22 @@ dotenv.config({path: "./.env"});
 import connectDB from "./database/index.js";
 
 //conncting to the database
-connectDB();
+connectDB()
+//every async fucntion returns a promise
+//to handle the promise we use then and catch
+
+// then is called when the promise is resolved
+// inside then we can start the server
+// to listen to the port we use app.listen
+.then(()=>{
+    app.listen(process.env.PORT || 8000, ()=>{
+        console.log(`Server is running on port ${process.env.PORT || 8000}`);
+    });
+})
+.catch((err)=>{
+    console.log("Error while connecting to the database", err);
+});
+
 
 
 
