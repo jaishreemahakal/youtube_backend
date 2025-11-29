@@ -7,6 +7,7 @@ import cookieParser from 'cookie-parser';
 const app = express();
 
 // app.use is a method to configure middleware
+//cors is similar to a middleware
 //app.use(cors()) is used to enable CORS (Cross-Origin Resource Sharing)
 app.use(cors({
     origin: process.env.CORS_ORIGIN ,
@@ -14,6 +15,7 @@ app.use(cors({
 }));
 
 //app.use(express.json()) used to parse incoming JSON requests and puts the parsed data in req.body
+// limit : '16kb' limits the size of the incoming request body to 16 kilobytes
 app.use(express.json({limit : '16kb'}))
 
 // app.use(express.urlencoded()) is a built-in middleware function in Express. 
@@ -22,7 +24,8 @@ app.use(express.json({limit : '16kb'}))
 // limit : '16kb' limits the size of the incoming request body to 16 kilobytes
 app.use(express.urlencoded({ extended: true ,limit : '16kb'}));
 
-//app.use(express.static ('public')) serves static files such as images, CSS files, and JavaScript files from the 'public' directory
+//app.use(express.static ('public')) serves static files such as images, CSS files, and 
+// JavaScript files from the 'public' directory
 app.use(express.static('public'));
 
 //what is  cookie?
@@ -32,4 +35,11 @@ app.use(express.static('public'));
 //cookie-parser is a middleware that parses cookies attached to the client request object.
 
 app.use(cookieParser());
+
+// import routes 
+import UserRouter from "./routes/user.router.js";
+
+// route middleware
+app.use("/users", UserRouter);
+
 export { app };
