@@ -4,13 +4,15 @@ import { User } from '../models/user.model.js';
 import { uploadOnCloudinary } from '../utils/cloudinary.js';
 import { ApiResponse } from '../utils/apiResponse.js';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 const generateAccessandRefreshTokens= async(userId)=>{
   try {
     const user=await User.findById(userId);
     const accessToken=user.generateAccessToken()
-    user.generateRefreshToken()
-    //this refresh token in database
+    const refreshToken=user.RefreshAccessToken() // Fixed: correct method name
+    
+    //save refresh token in database
     user.refreshToken=refreshToken;
     await user.save({validateBeforeSave:false});
     //return tokens
@@ -113,7 +115,7 @@ const loginUser=asyncHandler(async(req,res)=>{
    const {username ,email, password}=req.body
 
    //vaildation
-   if(!username || !password){
+   if(!(username || email)){
     throw new ApiError("Username and password are required",400);
    }
    
@@ -199,9 +201,57 @@ const logoutUser=asyncHandler(async(req,res)=>{
 
 })
 
+const RefreshAccessToken=asyncHandler(async(req,res)=>{
+  //extract refresh token from cookies or headers
+  const incomingRefrshToken=req.cookies?.refreshToken || req.body?.refreshToken
+  if(!incomingRefrshToken){
+    throw new ApiError("unauthorised request",401);
+
+  }
+  //verify refresh token
+  const decodedToken=jwt.verify
+  ( incomingRefrshToken,
+    process.env.REFRESH_TOKEN_SECRET
+  )
+ 
+
+  //compare the refresh token with the one in database
+  const user= await User.findById(decodedToken?._id);
+  if(!user){
+    throw new ApiError("unauthorised request, user not found",401);
+  }
+
+  if(user?.refreshToken !== incomingRefrshToken){
+    throw new ApiError("unauthorised request, invalid refresh token",401);
+  }
+  
+  const options={
+    httpOnly:true,
+    secure:true
+  }
+  //genreate new access and refresh tokesn
+  const {accessToken,NewrefreshToken}=await 
+  generateAccessandRefreshTokens(user._id)
+
+  //send response including cookies
+  return res.status(200)
+  .cookie("accessToken",accessToken.options)
+  .cookie("refreshToken",NewrefreshToken,options)
+  .json( 
+    new ApiResponse(200,
+    {
+      accessToken,NewrefreshToken
+    },
+    "Access token refreshed successfully"
+  )
+)
+})
+
+
 export {
   registerUser,
   loginUser,
-  logoutUser
+  logoutUser,
+  RefreshAccessToken
 
 }
