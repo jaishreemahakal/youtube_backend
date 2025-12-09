@@ -5,6 +5,7 @@ import { uploadOnCloudinary } from '../utils/cloudinary.js';
 import { ApiResponse } from '../utils/apiResponse.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { subscription } from '../models/subscription.model.js';
 
 const generateAccessandRefreshTokens= async(userId)=>{
   try {
@@ -248,13 +249,207 @@ const RefreshAccessToken=asyncHandler(async(req,res)=>{
 })
 
 
+const changeCurrentPassword=asyncHandler(async(req,res)=>{
+  //destructure old and new password from req.body
+  const{ oldPassword,newPassword}=req.body;
 
+  //get user id from req.user
+  const user=await User.findById(req.user?._id)
+
+  const isPasswordValid = await user.isPasswordCorrect(oldPassword);
+  if(!isPasswordValid){
+    throw new ApiError("Old password is incorrect",400);
+  }
+  //update password
+  user.password=newPassword;
+  await user.save({validateBeforeSave:true});
+  return res.status(200).json(
+    new ApiResponse(200,null,"Password changed successfully")
+  );
+
+
+
+
+
+}
+
+)
+
+
+const updateAccountDetails=asyncHandler(async(req,res)=>{ 
+  const {fullName,email}=req.body
+
+  if(!username || !email){
+    throw new ApiError("Username and email are required",400)
+  }
+  //find and update user details
+  const user=await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set:{
+        fullNmame:fullName,
+        email:email
+      }
+    },
+    {
+      new:true,
+    }
+  ).select("-password")
+  return res.status(200).json(
+    new ApiResponse(200,user,"Account details updated successfully")
+  )
+
+
+})
+
+const updateUserAvatar=asyncHandler(async(req,res)=>{
+
+  //apply multer middleware to accpect the avatar file
+  //check if user is login in using verifyjwt middleware
+  const avatarLocalPath=req.file?.path;
+  if(!avatarLocalPath){
+    throw new ApiError("Avatar image is required",400);
+  }
+
+  //upload avatar to cloudinary
+  const avatar= await uploadOnCloudinary
+  (avatarLocalPath)
+  if(!avatar){
+    throw new ApiError("Error while uploading avatar image to Cloudinary",500);
+  }
+  //update user avatar in database
+  const user=await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set:{
+        avatar:avatar?.url
+      }
+    },{
+      new:true
+    }
+  ).select("-password");
+
+  //response
+  return res.status(200).json(
+    
+    new ApiResponse(200,user,"Avatar updated successfully")
+  )
+
+
+})
+
+const updateUserCoverImage=asyncHandler(async(req,res)=>{
+  //apply multer middleware to accpect the cover image file
+  //check if user is login in using verifyjwt middleware  
+  const coverImageLocalPath=req.file?.path;
+  if(!coverImageLocalPath){
+    throw new ApiError("Cover image is required",400);
+  }
+  //upload cover image to cloudinary
+  const coverImage= await uploadOnCloudinary
+  (coverImageLocalPath) 
+  if(!coverImage){
+    throw new ApiError("Error while uploading cover image to Cloudinary",500);
+  } 
+  //update user cover image in database
+  const user=await User.findByIdAndUpdate(
+    req.user?._id,    
+    {
+      $set:{
+        coverImage:coverImage?.url  
+      }
+    },
+    {
+      new:true
+    }
+  ).select("-password");
+
+  //respose
+  return res.status(200).json( 
+
+    new ApiResponse(200,user,"Cover image updated successfully")
+  )
+ 
+})
+
+const getUserchannelProfile=asyncHandler(async(req,res)=>{
+
+  const {username}=req.params
+
+  if(!username){
+    throw new ApiError("Username is required",400);
+  }
+
+  const channel=await User.aggregate(
+    [
+      { $match:{
+        username:username.toLowerCase()
+      }
+      },
+      {
+        $lookup:{
+          from:"subscriptions",
+          localField:"_id",
+          foreignField:"channel",
+          as:"subscribers"
+
+        }
+      },
+      {
+        $lookup:{
+          from:"subscriptions",
+          localField:"_id",
+          foreignField:"subscriber",
+          as:"subscribedTo"
+        }
+      },
+      {
+        $addFields:{
+          subscribersCount: { $size: "$subscribers" },
+          channelsubscibed: { $size: "$subscribedTo"},
+          isSubscribed:
+          {
+           $cond:{
+            if:{ $in: [req.user?._id, "$subscribers.subscriber"] },
+            then: true,
+            else: false
+           }
+          }
+        }
+      },
+      {
+        $project:{
+          fullName:1,
+          username:1,
+          subscriptionsCount:1,
+          channelsubscibed:1,
+          isSubscribed:1,
+          avatar:1,
+          coverImage:1
+        }
+      }
+
+    ]
+)
+if(!channel?.length){
+  throw new ApiError("Channel not found",404);
+}
+return res.status(200).json(
+
+  new ApiResponse(200,channel[0],"Channel profile fetched successfully")
+)
+
+})
 
 
 export {
   registerUser,
   loginUser,
   logoutUser,
-  RefreshAccessToken
-
-}
+  RefreshAccessToken,
+  changeCurrentPassword,
+  updateAccountDetails,
+  updateUserCoverImage,
+  updateUserAvatar,
+  getUserchannelProfile
+} 
