@@ -6,12 +6,13 @@ import { ApiResponse } from '../utils/apiResponse.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { subscription } from '../models/subscription.model.js';
+import mongoose from 'mongoose';
 
 const generateAccessandRefreshTokens= async(userId)=>{
   try {
     const user=await User.findById(userId);
     const accessToken=user.generateAccessToken()
-    const refreshToken=user.RefreshAccessToken() // Fixed: correct method name
+    const refreshToken=user.generateRefreshToken() // Fixed: correct method name
     
     //save refresh token in database
     user.refreshToken=refreshToken;
@@ -441,7 +442,56 @@ return res.status(200).json(
 
 })
 
+const getWatchHistory=asyncHandler(async(req,res)=>{
 
+  const user= User.aggregate([
+    {
+      $match:{
+        _id:mongoose.Types.ObjectId(req.user?._id)
+      }
+    },
+    {
+      $lookup:{
+        from:"videos",
+        localfield:"watchHistory",
+        foreignField:"_id",
+        as:"watchHistory",
+        pipeline:[
+          {
+            $lookup:{
+              from:"users",
+              localField:"owner",
+              foreignField:"_id",
+              as:"owner",
+              pipeline:[
+                {
+                  $project:{
+                    fullName:1,
+                    username:1,
+                    avatar:1
+                  }
+
+                },
+                {
+                  $addFields:{
+                    owner:{
+                      $first:"$owner"
+                    }
+                }
+                }
+
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ])
+  return res.
+  status(200).json(
+    new ApiResponse(200,user.watchHistory,"User watch history fetched successfully")
+  )
+})
 export {
   registerUser,
   loginUser,
@@ -451,5 +501,6 @@ export {
   updateAccountDetails,
   updateUserCoverImage,
   updateUserAvatar,
-  getUserchannelProfile
+  getUserchannelProfile,
+  getWatchHistory
 } 
