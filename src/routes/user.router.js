@@ -3,7 +3,7 @@ import { registerUser,
          loginUser,
          logoutUser,
          RefreshAccessToken,
-         getUserWatchHistory,
+         getWatchHistory,
          changeCurrentPassword,
          updateAccountDetails,
          updateUserCoverImage,
@@ -31,10 +31,11 @@ router.route("/register").post(upload.fields(
 
 router.route("/login").post(loginUser);
 
-
-router.route("/logout").post(verifyJWT, logoutUser);
-
 router.route("/refresh").post(RefreshAccessToken);
+
+
+//secured routes
+router.route("/logout").post(verifyJWT, logoutUser);
 
 router.route("/change-password").post(verifyJWT, changeCurrentPassword);
 
@@ -44,7 +45,7 @@ router.route("/update-avatar").patch(verifyJWT, upload.single("avatar"), updateU
 
 router.route("/update-cover-image").patch(verifyJWT, upload.single("coverImage"), updateUserCoverImage);
 
-router.route("/watch-history").get(verifyJWT, getUserWatchHistory);
+router.route("/watch-history").get(verifyJWT, getWatchHistory);
 
 router.route("/channel/:username").get(getUserchannelProfile);
 
