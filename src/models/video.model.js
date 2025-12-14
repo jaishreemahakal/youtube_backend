@@ -1,6 +1,6 @@
 import mongoose,{Schema} from 'mongoose';
 import mongooseAggregatePaginate from 'mongoose-aggregate-paginate-v2';
-// mon
+// mongoose-aggregate-paginate-v2 is used to paginate the results of aggregate queries
 
 
 const videoSchema = new Schema({
